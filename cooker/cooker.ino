@@ -15,6 +15,7 @@ double Vcc = 3.3;
 int desireTemp = 50;
 int timeSleep = 0;
 int runningMode = 0;
+int runningTime = 0;
 
 const int relayCtlPin = 14; // D5
 const int menuPin = 12; // D6
@@ -71,20 +72,27 @@ void loop() {
     int currentTemp = (int)Thermister(AnalogRead());
     lcd.clear();
     lcd.setCursor(0, 0);
-    String displayText = "Current: " + String(currentTemp) + "°C";
+    String displayText = "Act/Der: " + String(currentTemp) + "/" + String(desireTemp) + "°C";
     lcd.print(displayText);
     
     lcd.setCursor(0, 1);
-    displayText = "Desire: " + String(desireTemp) + "°C";
+    int remainingTimeInSec = timeSleep * 60 - runningTime;
+    if(remainingTimeInSec <= 0) remainingTimeInSec = 0;
+    displayText = "Remain: " + String(remainingTimeInSec) + "s";
     lcd.print(displayText);
-  
+    
     if (currentTemp < desireTemp) {
-      digitalWrite(relayCtlPin, HIGH);
+      if(runningTime < timeSleep * 60) {
+        digitalWrite(relayCtlPin, HIGH);
+      } else {
+        digitalWrite(relayCtlPin, LOW);
+      }
     } else {
       digitalWrite(relayCtlPin, LOW);
     }
     
     Serial.println(currentTemp);
+    runningTime++;
     delay(1000);  
   }  
   
@@ -122,7 +130,6 @@ void handlePlusInterrupt() {
     }
     else if( runningMode == 2) {
       timeSleep += 5; 
-//      if( timeSleep > 6 * 60 ) timeSleep = 6 * 60;
     }
     delay(100); 
 }
