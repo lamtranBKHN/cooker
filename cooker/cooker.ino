@@ -1,6 +1,10 @@
 #include <math.h>
 #include "setting.h"
 #include "display.h"
+#include <Arduino.h>
+#include <ESP8266WiFi.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 
 int AnalogRead() {
   int val = 0;
@@ -24,7 +28,6 @@ double Thermister(int val) {
 void Greeting() {
   displayText("Love You!", 3, 0);
   displayText("Have a nice day <3", 0, 1);
-  delay(3000);
 }
 
 void setup() {
@@ -32,6 +35,28 @@ void setup() {
   Greeting();
   Serial.begin(115200);
   pinMode(relayCtlPin, OUTPUT);
+
+  // Connect to wifi
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  int retry = 10;
+  while ( retry-- ) {
+    if ( WiFi.status() != WL_CONNECTED ) break;
+    delay ( 500 ); 
+    Serial.print ( "." );
+  }
+  
+  Serial.println();
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+
+  // Local
+  WiFi.softAP(host_ssid, host_password);
+  IPAddress IP = WiFi.softAPIP();
+  Serial.println(IP);
+
+  
 }
 
 
@@ -52,6 +77,9 @@ void loop() {
     displayText(displayTextWrite, 0, 0);
   }
 
+  // Display IP
+  displayText( WiFi.localIP().toString(), 1, 0);
+  
   // Check running time
   if(runningTime < timeSleep * 60) {
     if (currentTemp < desireTemp) {

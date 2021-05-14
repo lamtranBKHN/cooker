@@ -15,4 +15,10 @@ extern int runningTime;
 
 extern const int relayCtlPin;
 
+extern const char* ssid;
+extern const char* password;
+
+extern const char* host_ssid;
+extern const char* host_password;
+
 #endif
