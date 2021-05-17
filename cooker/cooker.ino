@@ -1,10 +1,21 @@
 #include <math.h>
 #include "setting.h"
 #include "display.h"
-#include <Arduino.h>
+//#include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include "webPage.h"
+
+AsyncWebServer server(80);
+
+const char* PARAM_INPUT_1 = "input1";
+const char* PARAM_INPUT_2 = "input2";
+const char* PARAM_INPUT_3 = "inputWifiSsid";
+
+void notFound(AsyncWebServerRequest *request) {
+  request->send(404, "text/plain", "Not found");
+}
 
 int AnalogRead() {
   int val = 0;
@@ -37,14 +48,15 @@ void setup() {
   pinMode(relayCtlPin, OUTPUT);
 
   // Connect to wifi
-  WiFi.mode(WIFI_STA);
+//  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
-  int retry = 10;
-  while ( retry-- ) {
+  int retry = 100;
+  while ( retry >= 0 ) {
     if ( WiFi.status() != WL_CONNECTED ) break;
     delay ( 500 ); 
     Serial.print ( "." );
+    retry--;
   }
   
   Serial.println();
@@ -56,7 +68,49 @@ void setup() {
   IPAddress IP = WiFi.softAPIP();
   Serial.println(IP);
 
+  /////////////////////////
   
+  
+  // Send web page with input fields to client
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/html", getPage(0, 0, 0));
+  });
+
+  // Send a GET request to <ESP_IP>/get?input1=<inputMessage>
+  server.on("/get", HTTP_GET, [] (AsyncWebServerRequest *request) {
+    String inputMessage;
+    String inputParam;
+    // GET input1 value on <ESP_IP>/get?input1=<inputMessage>
+    if (request->hasParam(PARAM_INPUT_1)) {
+      inputMessage = request->getParam(PARAM_INPUT_1)->value();
+      inputParam = PARAM_INPUT_1;
+    }
+    // GET input2 value on <ESP_IP>/get?input2=<inputMessage>
+    if (request->hasParam(PARAM_INPUT_2)) {
+      inputMessage = request->getParam(PARAM_INPUT_2)->value();
+      inputParam = PARAM_INPUT_2;
+    }
+    // GET input3 value on <ESP_IP>/get?input3=<inputMessage>
+    if (request->hasParam("inputWifiSsid") || request->hasParam("inputWifiPass")) {
+      String ssid = 
+      inputMessage = request->getParam(PARAM_INPUT_3)->value();
+      inputParam = PARAM_INPUT_3;
+      
+      char* ssid = "ThienTuyenTu";
+      char* password = "12041998";
+      Serial.println(PARAM_INPUT_3);
+      setup();
+    }
+    Serial.println(inputMessage);
+    request->send(200, "text/html", "HTTP GET request sent to your ESP on input field (" 
+                                     + inputParam + ") with value: " + inputMessage +
+                                     "<br><a href=\"/\">Return to Home Page</a>");
+  });
+  server.onNotFound(notFound);
+  server.begin();
+  
+  
+  ///////////////////////////  
 }
 
 
@@ -78,7 +132,8 @@ void loop() {
   }
 
   // Display IP
-  displayText( WiFi.localIP().toString(), 1, 0);
+  displayText( WiFi.localIP().toString(), 0, 1);
+//  displayText( WiFi.softAPIP().toString(), 0, 1);
   
   // Check running time
   if(runningTime < timeSleep * 60) {

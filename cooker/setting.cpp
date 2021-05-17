@@ -14,8 +14,8 @@ int runningTime = 0;
 
 const int relayCtlPin = 12; // D5
 
-const char* ssid = "test";
-const char* password = "12345678";
+char* ssid = "ThienTuyenTu";
+char* password = "12041998";
 
 const char* host_ssid = "happy cooker";
 const char* host_password = "12345678";
