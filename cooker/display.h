@@ -6,5 +6,6 @@ void displayInit();
 void displayText(String text, int row, int col);
 void displayClear();
 void displayTurnOff();
+void displayTurnLightOn();
 
 #endif

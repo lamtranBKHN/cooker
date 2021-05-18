@@ -6,8 +6,7 @@
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include "webPage.h"
-#include <DNSServer.h>      /
-
+#include <DNSServer.h>      
 
 AsyncWebServer server(80);
 // DNS server
@@ -15,12 +14,7 @@ const byte DNS_PORT = 53;
 IPAddress apIP(10, 10, 10, 1); 
 DNSServer dnsServer;
 
-void notFound(AsyncWebServerRequest *request) {
-  request->send(404, "text/plain", "Not found");
-}
-
 int AnalogRead() {
-
   int val = 0;
   for(int i = 0; i < 20; i++) {
     val += analogRead(A0);
@@ -51,36 +45,30 @@ void setup() {
   pinMode(relayCtlPin, OUTPUT);
 
   // Connect to wifi
-//  WiFi.mode(WIFI_STA);
-//  WiFi.begin(ssid, password);
-//
-//  int retry = 100;
-//  while ( retry >= 0 ) {
-//    if ( WiFi.status() != WL_CONNECTED ) break;
-//    delay ( 500 ); 
-//    Serial.print ( "." );
-//    retry--;
-//  }
-  
-//  Serial.println();
-//  Serial.print("IP Address: ");
-//  Serial.println(WiFi.localIP());
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
 
+  int retry = 100;
+  while ( retry >= 0 ) {
+    if ( WiFi.status() == WL_CONNECTED ) break;
+    delay ( 500 ); 
+    Serial.print ( "." );
+    retry--;
+  }
+  
+  Serial.println();
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+  accessIp = WiFi.localIP().toString();
   // Local
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-  WiFi.softAP("DNSServer example");
-//  dnsServer.setTTL(300);
-//  dnsServer.setErrorReplyCode(DNSReplyCode::ServerFailure);
+  WiFi.softAP("Happy Cooker");
   
   dnsServer.start(DNS_PORT, "*", apIP);
   
-  /////////////////////////
-  
-  
   // Send web page with input fields to client
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    int currentTemp = (int)Thermister(AnalogRead());
     int remainingSec = timeSleep * 60 - runningTime;
     request->send(200, "text/html", getPage(currentTemp, desireTemp, remainingSec));
   });
@@ -97,6 +85,7 @@ void setup() {
     // Setting temperature
     else if (request->hasParam("inputDesireTemperature")) {
       desireTemp = ( request->getParam("inputDesireTemperature")->value() ).toInt();
+      Serial.println(desireTemp);
     }
 
     // Setting timer
@@ -106,71 +95,66 @@ void setup() {
 
     //Turn on
     else if(request->hasParam("turnOn")) {
-      setup();
       runningTime = 0;
+      displayTurnLightOn();
+      timeSleep = 0;
+      desireTemp = 50;
+      digitalWrite(relayCtlPin, LOW);
     }
 
     // Turn Off
     else if(request->hasParam("turnOff")) {
+      timeSleep = 0;
       digitalWrite(relayCtlPin, LOW);
       displayTurnOff();
+      displayClear();
     }
     
-    int currentTemp = (int)Thermister(AnalogRead());
     int remainingSec = timeSleep * 60 - runningTime;
-    request->send(200, getPage(currentTemp, desireTemp, remainingSec));
+    request->send(200, "text/html", getPage(currentTemp, desireTemp, remainingSec));
   });
   
 //  server.onNotFound(notFound) ;
   server.onNotFound([](AsyncWebServerRequest *request){
-    int currentTemp = (int)Thermister(AnalogRead());
     int remainingSec = timeSleep * 60 - runningTime;
     request->send(200, "text/html", getPage(currentTemp, desireTemp, remainingSec));
   });
   server.begin();
-  
-  
-  ///////////////////////////  
+ 
 }
-
 
 void loop() {
   dnsServer.processNextRequest();
-  if(timeSleep > 0) {
-    displayClear();
-    int currentTemp = (int)Thermister(AnalogRead());
-    int remainingSec = timeSleep * 60 - runningTime;
-    // Remaining time is over 1h
-    if( remainingSec > 3600) {
-      int remainingTimeInHour = (int)( remainingSec / 3600 );
-      int remainingTimeInMin  = (int)( (int)( remainingSec % 3600 ) / 60 + 1);
-      String displayTextWrite = String(currentTemp) + "/" + String(desireTemp) + "\337C " + String(remainingTimeInHour) + "h" + String(remainingTimeInMin) + "m";
-      displayText(displayTextWrite, 0, 0);
-    } else {
-      int remainingTimeInMin = (int)( remainingSec / 60 );
-      int remainingTimeInSec  = (int)( remainingSec % 60 );
-      String displayTextWrite = String(currentTemp) + "/" + String(desireTemp) + "\337C " + String(remainingTimeInMin) + "m" + String(remainingTimeInSec) + "s";
-      displayText(displayTextWrite, 0, 0);
-    }
+  displayClear();
+  currentTemp = (int)Thermister(AnalogRead());
+  int remainingSec = timeSleep * 60 - runningTime;
+  // Remaining time is over 1h
+  if( remainingSec > 3600) {
+    int remainingTimeInHour = (int)( remainingSec / 3600 );
+    int remainingTimeInMin  = (int)( (int)( remainingSec % 3600 ) / 60 + 1);
+    String displayTextWrite = String(currentTemp) + "/" + String(desireTemp) + "\337C " + String(remainingTimeInHour) + "h" + String(remainingTimeInMin) + "m";
+    displayText(displayTextWrite, 0, 0);
+  } else {
+    int remainingTimeInMin = (int)( remainingSec / 60 );
+    int remainingTimeInSec  = (int)( remainingSec % 60 );
+    String displayTextWrite = String(currentTemp) + "/" + String(desireTemp) + "\337C " + String(remainingTimeInMin) + "m" + String(remainingTimeInSec) + "s";
+    displayText(displayTextWrite, 0, 0);
+  }
+
+  // Display IP
+  displayText( accessIp, 0, 1);
   
-    // Display IP
-    displayText( WiFi.localIP().toString(), 0, 1);
-  //  displayText( WiFi.softAPIP().toString(), 0, 1);
-    
-    // Check running time
-    if(runningTime < timeSleep * 60) {
-      if (currentTemp < desireTemp) {
-        digitalWrite(relayCtlPin, HIGH);
-      } else {
-        digitalWrite(relayCtlPin, LOW);
-      }
-      runningTime++;
+  // Check running time
+  if(runningTime < timeSleep * 60) {
+    if (currentTemp < desireTemp) {
+      digitalWrite(relayCtlPin, HIGH);
+      displayTurnLightOn();
     } else {
       digitalWrite(relayCtlPin, LOW);
-      displayTurnOff();
     }
-    
-    Serial.println(currentTemp);
-    delay(1000); 
-  } 
+    runningTime++;
+  } else {
+    digitalWrite(relayCtlPin, LOW);
+  }
+  delay(1000); 
 }

@@ -24,3 +24,7 @@ void displayTurnOff() {
   lcd.clear();
   lcd.noBacklight();
 }
+
+void displayTurnLightOn() {
+  lcd.backlight();
+}
