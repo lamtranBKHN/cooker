@@ -2,6 +2,6 @@
 #define WEB_PAGE_H
 #include <Arduino.h>
 
-String getPage(int currentTemp, int desireTemp, int remainingInMin);
+String getPage(int currentTemp, int desireTemp, int remainingInSec);
 //const char* getPageTest();
 #endif

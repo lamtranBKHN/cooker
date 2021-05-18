@@ -6,18 +6,21 @@
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include "webPage.h"
+#include <DNSServer.h>      /
+
 
 AsyncWebServer server(80);
-
-const char* PARAM_INPUT_1 = "input1";
-const char* PARAM_INPUT_2 = "input2";
-const char* PARAM_INPUT_3 = "inputWifiSsid";
+// DNS server
+const byte DNS_PORT = 53;
+IPAddress apIP(10, 10, 10, 1); 
+DNSServer dnsServer;
 
 void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "Not found");
 }
 
 int AnalogRead() {
+
   int val = 0;
   for(int i = 0; i < 20; i++) {
     val += analogRead(A0);
@@ -49,64 +52,81 @@ void setup() {
 
   // Connect to wifi
 //  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-
-  int retry = 100;
-  while ( retry >= 0 ) {
-    if ( WiFi.status() != WL_CONNECTED ) break;
-    delay ( 500 ); 
-    Serial.print ( "." );
-    retry--;
-  }
+//  WiFi.begin(ssid, password);
+//
+//  int retry = 100;
+//  while ( retry >= 0 ) {
+//    if ( WiFi.status() != WL_CONNECTED ) break;
+//    delay ( 500 ); 
+//    Serial.print ( "." );
+//    retry--;
+//  }
   
-  Serial.println();
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
+//  Serial.println();
+//  Serial.print("IP Address: ");
+//  Serial.println(WiFi.localIP());
 
   // Local
-  WiFi.softAP(host_ssid, host_password);
-  IPAddress IP = WiFi.softAPIP();
-  Serial.println(IP);
-
+  WiFi.mode(WIFI_AP);
+  WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+  WiFi.softAP("DNSServer example");
+//  dnsServer.setTTL(300);
+//  dnsServer.setErrorReplyCode(DNSReplyCode::ServerFailure);
+  
+  dnsServer.start(DNS_PORT, "*", apIP);
+  
   /////////////////////////
   
   
   // Send web page with input fields to client
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/html", getPage(0, 0, 0));
+    int currentTemp = (int)Thermister(AnalogRead());
+    int remainingSec = timeSleep * 60 - runningTime;
+    request->send(200, "text/html", getPage(currentTemp, desireTemp, remainingSec));
   });
 
   // Send a GET request to <ESP_IP>/get?input1=<inputMessage>
   server.on("/get", HTTP_GET, [] (AsyncWebServerRequest *request) {
-    String inputMessage;
-    String inputParam;
-    // GET input1 value on <ESP_IP>/get?input1=<inputMessage>
-    if (request->hasParam(PARAM_INPUT_1)) {
-      inputMessage = request->getParam(PARAM_INPUT_1)->value();
-      inputParam = PARAM_INPUT_1;
-    }
-    // GET input2 value on <ESP_IP>/get?input2=<inputMessage>
-    if (request->hasParam(PARAM_INPUT_2)) {
-      inputMessage = request->getParam(PARAM_INPUT_2)->value();
-      inputParam = PARAM_INPUT_2;
-    }
-    // GET input3 value on <ESP_IP>/get?input3=<inputMessage>
-    if (request->hasParam("inputWifiSsid") || request->hasParam("inputWifiPass")) {
-      String ssid = 
-      inputMessage = request->getParam(PARAM_INPUT_3)->value();
-      inputParam = PARAM_INPUT_3;
-      
-      char* ssid = "ThienTuyenTu";
-      char* password = "12041998";
-      Serial.println(PARAM_INPUT_3);
+    // Setting SSID 
+    if (request->hasParam("inputWifiSsid") && request->hasParam("inputWifiPass")) {
+      ssid = request->getParam("inputWifiSsid")->value().c_str();
+      password = request->getParam("inputWifiPass")->value().c_str();
       setup();
     }
-    Serial.println(inputMessage);
-    request->send(200, "text/html", "HTTP GET request sent to your ESP on input field (" 
-                                     + inputParam + ") with value: " + inputMessage +
-                                     "<br><a href=\"/\">Return to Home Page</a>");
+
+    // Setting temperature
+    else if (request->hasParam("inputDesireTemperature")) {
+      desireTemp = ( request->getParam("inputDesireTemperature")->value() ).toInt();
+    }
+
+    // Setting timer
+    else if (request->hasParam("inputTimerHour") && request->hasParam("inputTimerMin")) {
+      timeSleep = ( request->getParam("inputTimerHour")->value() ).toInt() * 60 + ( request->getParam("inputTimerMin")->value() ).toInt();
+    }
+
+    //Turn on
+    else if(request->hasParam("turnOn")) {
+      setup();
+      runningTime = 0;
+    }
+
+    // Turn Off
+    else if(request->hasParam("turnOff")) {
+      digitalWrite(relayCtlPin, LOW);
+      displayTurnOff();
+    }
+    
+    int currentTemp = (int)Thermister(AnalogRead());
+    int remainingSec = timeSleep * 60 - runningTime;
+    request->send(200, getPage(currentTemp, desireTemp, remainingSec));
   });
-  server.onNotFound(notFound);
+  
+//  server.onNotFound(notFound) ;
+  server.onNotFound([](AsyncWebServerRequest *request){
+    int currentTemp = (int)Thermister(AnalogRead());
+    int remainingSec = timeSleep * 60 - runningTime;
+    request->send(200, "text/html", getPage(currentTemp, desireTemp, remainingSec));
+  });
   server.begin();
   
   
@@ -115,6 +135,7 @@ void setup() {
 
 
 void loop() {
+  dnsServer.processNextRequest();
   displayClear();
   int currentTemp = (int)Thermister(AnalogRead());
   int remainingSec = timeSleep * 60 - runningTime;
