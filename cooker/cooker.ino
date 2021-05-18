@@ -136,39 +136,41 @@ void setup() {
 
 void loop() {
   dnsServer.processNextRequest();
-  displayClear();
-  int currentTemp = (int)Thermister(AnalogRead());
-  int remainingSec = timeSleep * 60 - runningTime;
-  // Remaining time is over 1h
-  if( remainingSec > 3600) {
-    int remainingTimeInHour = (int)( remainingSec / 3600 );
-    int remainingTimeInMin  = (int)( (int)( remainingSec % 3600 ) / 60 + 1);
-    String displayTextWrite = String(currentTemp) + "/" + String(desireTemp) + "\337C " + String(remainingTimeInHour) + "h" + String(remainingTimeInMin) + "m";
-    displayText(displayTextWrite, 0, 0);
-  } else {
-    int remainingTimeInMin = (int)( remainingSec / 60 );
-    int remainingTimeInSec  = (int)( remainingSec % 60 );
-    String displayTextWrite = String(currentTemp) + "/" + String(desireTemp) + "\337C " + String(remainingTimeInMin) + "m" + String(remainingTimeInSec) + "s";
-    displayText(displayTextWrite, 0, 0);
-  }
-
-  // Display IP
-  displayText( WiFi.localIP().toString(), 0, 1);
-//  displayText( WiFi.softAPIP().toString(), 0, 1);
+  if(timeSleep > 0) {
+    displayClear();
+    int currentTemp = (int)Thermister(AnalogRead());
+    int remainingSec = timeSleep * 60 - runningTime;
+    // Remaining time is over 1h
+    if( remainingSec > 3600) {
+      int remainingTimeInHour = (int)( remainingSec / 3600 );
+      int remainingTimeInMin  = (int)( (int)( remainingSec % 3600 ) / 60 + 1);
+      String displayTextWrite = String(currentTemp) + "/" + String(desireTemp) + "\337C " + String(remainingTimeInHour) + "h" + String(remainingTimeInMin) + "m";
+      displayText(displayTextWrite, 0, 0);
+    } else {
+      int remainingTimeInMin = (int)( remainingSec / 60 );
+      int remainingTimeInSec  = (int)( remainingSec % 60 );
+      String displayTextWrite = String(currentTemp) + "/" + String(desireTemp) + "\337C " + String(remainingTimeInMin) + "m" + String(remainingTimeInSec) + "s";
+      displayText(displayTextWrite, 0, 0);
+    }
   
-  // Check running time
-  if(runningTime < timeSleep * 60) {
-    if (currentTemp < desireTemp) {
-      digitalWrite(relayCtlPin, HIGH);
+    // Display IP
+    displayText( WiFi.localIP().toString(), 0, 1);
+  //  displayText( WiFi.softAPIP().toString(), 0, 1);
+    
+    // Check running time
+    if(runningTime < timeSleep * 60) {
+      if (currentTemp < desireTemp) {
+        digitalWrite(relayCtlPin, HIGH);
+      } else {
+        digitalWrite(relayCtlPin, LOW);
+      }
+      runningTime++;
     } else {
       digitalWrite(relayCtlPin, LOW);
+      displayTurnOff();
     }
-    runningTime++;
-  } else {
-    digitalWrite(relayCtlPin, LOW);
-    displayTurnOff();
-  }
-  
-  Serial.println(currentTemp);
-  delay(1000);  
+    
+    Serial.println(currentTemp);
+    delay(1000); 
+  } 
 }

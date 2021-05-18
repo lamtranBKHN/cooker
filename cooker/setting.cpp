@@ -8,7 +8,7 @@ unsigned int RS = 100000;
 double Vcc = 3.3;
 
 int desireTemp = 50;
-int timeSleep = 1;
+int timeSleep = 0;
 int runningMode = 0;
 int runningTime = 0;
 
