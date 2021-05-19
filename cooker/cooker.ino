@@ -43,7 +43,8 @@ void setup() {
   Greeting();
   Serial.begin(115200);
   pinMode(relayCtlPin, OUTPUT);
-
+  isRunning = true;
+  
   // Connect to wifi
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
@@ -55,25 +56,24 @@ void setup() {
     Serial.print ( "." );
     retry--;
   }
-  
   Serial.println();
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
   accessIp = WiFi.localIP().toString();
+
+  
   // Local
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-  WiFi.softAP("Happy Cooker");
-  
+  WiFi.softAP(host_ssid);
   dnsServer.start(DNS_PORT, "*", apIP);
-  
+
   // Send web page with input fields to client
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     int remainingSec = timeSleep * 60 - runningTime;
     request->send(200, "text/html", getPage(currentTemp, desireTemp, remainingSec));
   });
 
-  // Send a GET request to <ESP_IP>/get?input1=<inputMessage>
   server.on("/get", HTTP_GET, [] (AsyncWebServerRequest *request) {
     // Setting SSID 
     if (request->hasParam("inputWifiSsid") && request->hasParam("inputWifiPass")) {
@@ -90,6 +90,7 @@ void setup() {
 
     // Setting timer
     else if (request->hasParam("inputTimerHour") && request->hasParam("inputTimerMin")) {
+      runningTime = 0;
       timeSleep = ( request->getParam("inputTimerHour")->value() ).toInt() * 60 + ( request->getParam("inputTimerMin")->value() ).toInt();
     }
 
@@ -100,14 +101,17 @@ void setup() {
       timeSleep = 0;
       desireTemp = 50;
       digitalWrite(relayCtlPin, LOW);
+      isRunning = true;
     }
 
     // Turn Off
     else if(request->hasParam("turnOff")) {
+      runningTime = 0;
       timeSleep = 0;
       digitalWrite(relayCtlPin, LOW);
       displayTurnOff();
       displayClear();
+      isRunning = false;
     }
     
     int remainingSec = timeSleep * 60 - runningTime;
@@ -125,36 +129,38 @@ void setup() {
 
 void loop() {
   dnsServer.processNextRequest();
-  displayClear();
-  currentTemp = (int)Thermister(AnalogRead());
-  int remainingSec = timeSleep * 60 - runningTime;
-  // Remaining time is over 1h
-  if( remainingSec > 3600) {
-    int remainingTimeInHour = (int)( remainingSec / 3600 );
-    int remainingTimeInMin  = (int)( (int)( remainingSec % 3600 ) / 60 + 1);
-    String displayTextWrite = String(currentTemp) + "/" + String(desireTemp) + "\337C " + String(remainingTimeInHour) + "h" + String(remainingTimeInMin) + "m";
-    displayText(displayTextWrite, 0, 0);
-  } else {
-    int remainingTimeInMin = (int)( remainingSec / 60 );
-    int remainingTimeInSec  = (int)( remainingSec % 60 );
-    String displayTextWrite = String(currentTemp) + "/" + String(desireTemp) + "\337C " + String(remainingTimeInMin) + "m" + String(remainingTimeInSec) + "s";
-    displayText(displayTextWrite, 0, 0);
-  }
-
-  // Display IP
-  displayText( accessIp, 0, 1);
+  if(isRunning) {
+    displayClear();
+    currentTemp = (int)Thermister(AnalogRead());
+    int remainingSec = timeSleep * 60 - runningTime;
+    // Remaining time is over 1h
+    if( remainingSec > 3600) {
+      int remainingTimeInHour = (int)( remainingSec / 3600 );
+      int remainingTimeInMin  = (int)( (int)( remainingSec % 3600 ) / 60 + 1);
+      String displayTextWrite = String(currentTemp) + "/" + String(desireTemp) + "\337C " + String(remainingTimeInHour) + "h" + String(remainingTimeInMin) + "m";
+      displayText(displayTextWrite, 0, 0);
+    } else {
+      int remainingTimeInMin = (int)( remainingSec / 60 );
+      int remainingTimeInSec  = (int)( remainingSec % 60 );
+      String displayTextWrite = String(currentTemp) + "/" + String(desireTemp) + "\337C " + String(remainingTimeInMin) + "m" + String(remainingTimeInSec) + "s";
+      displayText(displayTextWrite, 0, 0);
+    }
   
-  // Check running time
-  if(runningTime < timeSleep * 60) {
-    if (currentTemp < desireTemp) {
-      digitalWrite(relayCtlPin, HIGH);
-      displayTurnLightOn();
+    // Display IP
+    displayText( accessIp, 0, 1);
+    
+    // Check running time
+    if(runningTime < timeSleep * 60) {
+      if (currentTemp < desireTemp) {
+        digitalWrite(relayCtlPin, HIGH);
+        displayTurnLightOn();
+      } else {
+        digitalWrite(relayCtlPin, LOW);
+      }
+      runningTime++;
     } else {
       digitalWrite(relayCtlPin, LOW);
     }
-    runningTime++;
-  } else {
-    digitalWrite(relayCtlPin, LOW);
+    delay(1000);   
   }
-  delay(1000); 
 }

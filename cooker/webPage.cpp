@@ -16,12 +16,12 @@ String getPage(int currentTemp, int desireTemp, int remainingInSec) {
 
   page += "<br>";
   page += "<h3> Information </h3>";
-  page += "<h4 style='text-align: center;' > Current temperature: " + String(currentTemp) + "&#8451 </h4>";
-  page += "<h4 style='text-align: center;' > Desire temperature: " + String(desireTemp) + "&#8451 </h4>";
+  page += "<h4 style='text-align: center; color: black;' > Current temperature: " + String(currentTemp) + "&#8451 </h4>";
+  page += "<h4 style='text-align: center; color: black;' > Desire temperature: " + String(desireTemp) + "&#8451 </h4>";
   if(remainingInSec > 3600 ) {
-    page += "<h4 style='text-align: center;' > Remaning time: " + String(remainingInSec / 3600) + "h " + String(remainingInSec % 3600 / 60 + 1) + "m" + "</h4>";
+    page += "<h4 style='text-align: center; color: black;' > Remaning time: " + String(remainingInSec / 3600) + "h " + String(remainingInSec % 3600 / 60 + 1) + "m" + "</h4>";
   } else {
-    page += "<h4 style='text-align: center;' > Remaning time: " + String(remainingInSec / 60) + "m " + String(remainingInSec % 60) + "s" + "</h4>";
+    page += "<h4 style='text-align: center; color: black;' > Remaning time: " + String(remainingInSec / 60) + "m " + String(remainingInSec % 60) + "s" + "</h4>";
   }
   
   page += "<br>";

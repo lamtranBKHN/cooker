@@ -25,5 +25,6 @@ extern const char* host_ssid;
 extern const char* host_password;
 
 extern String accessIp;
+extern bool isRunning;
 
 #endif
